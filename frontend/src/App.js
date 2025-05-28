@@ -1,140 +1,213 @@
 import './App.css';
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate
+} from 'react-router-dom';
 import axios from 'axios';
 
-// login
+// login form component
 function Login({ setUser }) {
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [pwd, setPwd] = useState('');
+  const [err, setErr] = useState('');
 
-  const handleLogin = async (e) => {
+  // this logs you in, if all goes well
+  const tryLogin = async (e) => {
     e.preventDefault();
+
     try {
-      const res = await axios.post('http://localhost:4000/login', { username, password });
-      setUser(res.data.username);
-      localStorage.setItem('token', res.data.token);
+      const loginRes = await axios.post('http://localhost:4000/login', {
+        username: username,
+        password: pwd,
+      });
+
+      setUser(loginRes.data.username); // yay success
+      localStorage.setItem('token', loginRes.data.token); // store it for later
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      // show msg from server or fallback
+      setErr(err?.response?.data?.message || 'login didn\'t work');
     }
   };
 
   return (
     <div>
       <h2>Login</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleLogin}>
-        <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+      {err && <p style={{ color: 'red' }}>{err}</p>}
+      <form onSubmit={tryLogin}>
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          required
+        />
         <button type="submit">Login</button>
       </form>
-      <p>No account? <Link to="/signup">Sign Up</Link></p>
+      <p>
+        no account? <Link to="/signup">Sign Up</Link>
+      </p>
     </div>
   );
 }
 
-// signup
+// sign up screen
 function Signup() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [newUser, setNewUser] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [msg, setMsg] = useState('');
+  const [failMsg, setFailMsg] = useState('');
 
+  // creates an account
   const handleSignup = async (e) => {
     e.preventDefault();
+
     try {
-      await axios.post('http://localhost:4000/signup', { username, password });
-      setMessage('User created! You can now login.');
-      setError('');
-      setUsername('');
-      setPassword('');
+      await axios.post('http://localhost:4000/signup', {
+        username: newUser,
+        password: newPwd,
+      });
+
+      setMsg('user created! you can now login.');
+      setFailMsg('');
+      setNewUser('');
+      setNewPwd('');
     } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed');
-      setMessage('');
+      setFailMsg(err?.response?.data?.message || 'signup had an issue');
+      setMsg('');
     }
   };
 
   return (
     <div>
       <h2>Sign Up</h2>
-      {message && <p style={{ color: 'green' }}>{message}</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {msg && <p style={{ color: 'green' }}>{msg}</p>}
+      {failMsg && <p style={{ color: 'red' }}>{failMsg}</p>}
       <form onSubmit={handleSignup}>
-        <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required />
-        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
+        <input
+          type="text"
+          placeholder="Username"
+          value={newUser}
+          onChange={(e) => setNewUser(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={newPwd}
+          onChange={(e) => setNewPwd(e.target.value)}
+          required
+        />
         <button type="submit">Sign Up</button>
       </form>
-      <p>Have an account? <Link to="/">Login</Link></p>
+      <p>
+        have an account? <Link to="/">Login</Link>
+      </p>
     </div>
   );
 }
 
-// Welcome Component
+// welcome page after login
 function Welcome({ user, setUser }) {
+  // if someone sneaks here without login, send em back
   if (!user) return <Navigate to="/" />;
 
-  const handleLogout = () => {
+  const logoutUser = () => {
     setUser(null);
-    localStorage.removeItem('token');
+    localStorage.removeItem('token'); // forget the token
   };
 
   return (
     <div>
-      <h2>You have logged in, welcome {user}</h2>
-      <button onClick={handleLogout}>Logout</button>
-      <p><Link to="/manager">Go to Password Manager</Link></p>
+      <h2>you have logged in, welcome {user}</h2>
+      <button onClick={logoutUser}>Logout</button>
+      <p>
+        <Link to="/manager">Go to Password Manager</Link>
+      </p>
     </div>
   );
 }
 
-// vault
+// vault - where the password magic happens
 function Vault({ token }) {
   const [site, setSite] = useState('');
   const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
-  const [masterPassword, setMasterPassword] = useState('');
+  const [pw, setPw] = useState('');
+  const [master, setMaster] = useState('');
   const [viewKey, setViewKey] = useState('');
-  const [entries, setEntries] = useState([]);
-  const [unlocked, setUnlocked] = useState(false);
+  const [saved, setSaved] = useState([]);
+  const [canSee, setCanSee] = useState(false);
 
-  const addEntry = async () => {
-    if (!masterPassword) {
-      alert('Please enter master password to add an entry');
+  // adds a password to the vault
+  const savePassword = async () => {
+    if (!master) {
+      alert('please type master password first!');
       return;
     }
+
     try {
-      await axios.post('http://localhost:4000/vault/add',
-        { site, login, password, masterPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await axios.post(
+        'http://localhost:4000/vault/add',
+        {
+          site: site,
+          login: login,
+          password: pw,
+          masterPassword: master,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
-      alert('Password saved!');
+
+      alert('password saved!');
       setSite('');
       setLogin('');
-      setPassword('');
+      setPw('');
     } catch (err) {
-      console.error(err);
-      alert('Failed to save password');
+      console.log('save error:', err);
+      alert('failed to save password');
     }
   };
 
-  const unlockPasswords = async () => {
+  // unlocks saved passwords
+  const fetchPasswords = async () => {
     if (!viewKey) {
-      alert('Please enter the view password key');
+      alert('need the view password key');
       return;
     }
+
     try {
-      const res = await axios.post('http://localhost:4000/vault/list',
-        { masterPassword: viewKey },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await axios.post(
+        'http://localhost:4000/vault/list',
+        {
+          masterPassword: viewKey,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
-      setEntries(res.data);
-      setUnlocked(true);
+
+      setSaved(res.data);
+      setCanSee(true);
     } catch (err) {
-      console.error(err);
-      alert('Incorrect password to unlock saved passwords');
-      setUnlocked(false);
-      setEntries([]);
+      console.error('unlock failed', err);
+      alert('wrong view key or something broke');
+      setCanSee(false);
+      setSaved([]);
     }
   };
 
@@ -143,43 +216,78 @@ function Vault({ token }) {
       <h2>Password Vault</h2>
 
       <h3>Add New Entry</h3>
-      <input placeholder="Master Password (to encrypt)" type="password" value={masterPassword} onChange={e => setMasterPassword(e.target.value)} />
-      <input placeholder="Site" value={site} onChange={e => setSite(e.target.value)} />
-      <input placeholder="Login" value={login} onChange={e => setLogin(e.target.value)} />
-      <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-      <button onClick={addEntry}>Add</button>
+      <input
+        placeholder="Master Password (to encrypt)"
+        type="password"
+        value={master}
+        onChange={(e) => setMaster(e.target.value)}
+      />
+      <input
+        placeholder="Site"
+        value={site}
+        onChange={(e) => setSite(e.target.value)}
+      />
+      <input
+        placeholder="Login"
+        value={login}
+        onChange={(e) => setLogin(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        value={pw}
+        onChange={(e) => setPw(e.target.value)}
+      />
+      <button onClick={savePassword}>Add</button>
 
       <h3>Unlock Saved Passwords</h3>
-      <input placeholder="View Password Key (to decrypt)" type="password" value={viewKey} onChange={e => setViewKey(e.target.value)} />
-      <button onClick={unlockPasswords}>Unlock Passwords</button>
+      <input
+        placeholder="Enter Master Password"
+        type="password"
+        value={viewKey}
+        onChange={(e) => setViewKey(e.target.value)}
+      />
+      <button onClick={fetchPasswords}>Unlock Passwords</button>
 
-      {unlocked ? (
+      {canSee ? (
         <>
           <h3>Saved Passwords</h3>
           <ul>
-            {entries.map((entry, i) => (
-              <li key={i}>{entry.site} - {entry.login}: {entry.password}</li>
+            {saved.map((entry, idx) => (
+              <li key={idx}>
+                {entry.site} - {entry.login}: {entry.password}
+              </li>
             ))}
           </ul>
         </>
       ) : (
-        <p style={{ color: 'gray' }}>Enter the view key to see saved passwords.</p>
+        <p style={{ color: 'gray' }}>
+          Enter a master password to see saved passwords.
+        </p>
       )}
     </div>
   );
 }
 
-// main 
+// main app layout
 function App() {
   const [user, setUser] = useState(null);
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token'); // yay persistence
 
   return (
     <Router>
       <Routes>
-        <Route path="/" element={user ? <Navigate to="/welcome" /> : <Login setUser={setUser} />} />
+        <Route
+          path="/"
+          element={
+            user ? <Navigate to="/welcome" /> : <Login setUser={setUser} />
+          }
+        />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/welcome" element={<Welcome user={user} setUser={setUser} />} />
+        <Route
+          path="/welcome"
+          element={<Welcome user={user} setUser={setUser} />}
+        />
         <Route path="/manager" element={<Vault token={token} />} />
       </Routes>
     </Router>
