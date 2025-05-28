@@ -1,9 +1,9 @@
 import './App.css';
-
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 
+// Login Component
 function Login({ setUser }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -13,8 +13,8 @@ function Login({ setUser }) {
     e.preventDefault();
     try {
       const res = await axios.post('http://localhost:4000/login', { username, password });
-        setUser(res.data.username);
-        localStorage.setItem('token', res.data.token);
+      setUser(res.data.username);
+      localStorage.setItem('token', res.data.token);
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     }
@@ -23,22 +23,10 @@ function Login({ setUser }) {
   return (
     <div>
       <h2>Login</h2>
-      {error && <p style={{color:'red'}}>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
+        <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
         <button type="submit">Login</button>
       </form>
       <p>No account? <Link to="/signup">Sign Up</Link></p>
@@ -46,6 +34,7 @@ function Login({ setUser }) {
   );
 }
 
+// Signup Component
 function Signup() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -55,7 +44,7 @@ function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:4000/signup', { username, password });
+      await axios.post('http://localhost:4000/signup', { username, password });
       setMessage('User created! You can now login.');
       setError('');
       setUsername('');
@@ -69,23 +58,11 @@ function Signup() {
   return (
     <div>
       <h2>Sign Up</h2>
-      {message && <p style={{color:'green'}}>{message}</p>}
-      {error && <p style={{color:'red'}}>{error}</p>}
+      {message && <p style={{ color: 'green' }}>{message}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSignup}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={e => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-        />
+        <input type="text" placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} required />
+        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required />
         <button type="submit">Sign Up</button>
       </form>
       <p>Have an account? <Link to="/">Login</Link></p>
@@ -93,10 +70,9 @@ function Signup() {
   );
 }
 
+// Welcome Component
 function Welcome({ user, setUser }) {
-  if (!user) {
-    return <Navigate to="/" />;
-  }
+  if (!user) return <Navigate to="/" />;
 
   const handleLogout = () => {
     setUser(null);
@@ -112,97 +88,91 @@ function Welcome({ user, setUser }) {
   );
 }
 
-function PasswordManager({ user }) {
-  const [account, setAccount] = useState('');
-  const [accountUsername, setAccountUsername] = useState('');
-  const [accountPassword, setAccountPassword] = useState('');
-  const [passwords, setPasswords] = useState([]);
-  const [error, setError] = useState('');
-  const [token, setToken] = useState(localStorage.getItem('token'));
+// Vault Component (Secure Password Manager)
+function Vault({ token }) {
+  const [site, setSite] = useState('');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [masterPassword, setMasterPassword] = useState('');
+  const [viewKey, setViewKey] = useState('');
+  const [entries, setEntries] = useState([]);
+  const [unlocked, setUnlocked] = useState(false);
 
-  // Load passwords
-  const fetchPasswords = async () => {
-    try {
-      const res = await axios.get('http://localhost:4000/passwords', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      setPasswords(res.data);
-    } catch (err) {
-      setError('Failed to load passwords');
+  const addEntry = async () => {
+    if (!masterPassword) {
+      alert('Please enter master password to add an entry');
+      return;
     }
-  };
-
-  // Submit new password
-  const handleSave = async (e) => {
-    e.preventDefault();
     try {
-      await axios.post(
-        'http://localhost:4000/passwords',
-        { account, username: accountUsername, password: accountPassword },
+      await axios.post('http://localhost:4000/vault/add',
+        { site, login, password, masterPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setAccount('');
-      setAccountUsername('');
-      setAccountPassword('');
-      fetchPasswords(); // reload
+      alert('Password saved!');
+      setSite('');
+      setLogin('');
+      setPassword('');
     } catch (err) {
-      setError('Failed to save password');
+      console.error(err);
+      alert('Failed to save password');
     }
   };
 
-  // On first load
-  React.useEffect(() => {
-    fetchPasswords();
-  }, []);
-
-  if (!user) return <Navigate to="/" />;
+  const unlockPasswords = async () => {
+    if (!viewKey) {
+      alert('Please enter the view password key');
+      return;
+    }
+    try {
+      const res = await axios.post('http://localhost:4000/vault/list',
+        { masterPassword: viewKey },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setEntries(res.data);
+      setUnlocked(true);
+    } catch (err) {
+      console.error(err);
+      alert('Incorrect password to unlock saved passwords');
+      setUnlocked(false);
+      setEntries([]);
+    }
+  };
 
   return (
     <div>
-      <h2>Password Manager</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      <h2>Password Vault</h2>
 
-      <form onSubmit={handleSave}>
-        <input
-          type="text"
-          placeholder="Account (e.g. Gmail)"
-          value={account}
-          onChange={(e) => setAccount(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Username"
-          value={accountUsername}
-          onChange={(e) => setAccountUsername(e.target.value)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Password"
-          value={accountPassword}
-          onChange={(e) => setAccountPassword(e.target.value)}
-          required
-        />
-        <button type="submit">Save Password</button>
-      </form>
+      <h3>Add New Entry</h3>
+      <input placeholder="Master Password (to encrypt)" type="password" value={masterPassword} onChange={e => setMasterPassword(e.target.value)} />
+      <input placeholder="Site" value={site} onChange={e => setSite(e.target.value)} />
+      <input placeholder="Login" value={login} onChange={e => setLogin(e.target.value)} />
+      <input placeholder="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+      <button onClick={addEntry}>Add</button>
 
-      <h3>Saved Passwords</h3>
-      <ul>
-        {passwords.map((p) => (
-          <li key={p.id}>
-            <strong>{p.account}</strong> – {p.username}: {p.password}
-          </li>
-        ))}
-      </ul>
+      <h3>Unlock Saved Passwords</h3>
+      <input placeholder="View Password Key (to decrypt)" type="password" value={viewKey} onChange={e => setViewKey(e.target.value)} />
+      <button onClick={unlockPasswords}>Unlock Passwords</button>
+
+      {unlocked ? (
+        <>
+          <h3>Saved Passwords</h3>
+          <ul>
+            {entries.map((entry, i) => (
+              <li key={i}>{entry.site} - {entry.login}: {entry.password}</li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p style={{ color: 'gray' }}>Enter the view key to see saved passwords.</p>
+      )}
     </div>
   );
 }
 
+// Main App Component
 function App() {
   const [user, setUser] = useState(null);
+  const token = localStorage.getItem('token');
 
   return (
     <Router>
@@ -210,7 +180,7 @@ function App() {
         <Route path="/" element={user ? <Navigate to="/welcome" /> : <Login setUser={setUser} />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/welcome" element={<Welcome user={user} setUser={setUser} />} />
-        <Route path="/manager" element={<PasswordManager user={user} />} />
+        <Route path="/manager" element={<Vault token={token} />} />
       </Routes>
     </Router>
   );
