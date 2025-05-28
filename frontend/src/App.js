@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import axios from 'axios';
 
-// Login Component
+// login
 function Login({ setUser }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +34,7 @@ function Login({ setUser }) {
   );
 }
 
-// Signup Component
+// signup
 function Signup() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -88,7 +88,7 @@ function Welcome({ user, setUser }) {
   );
 }
 
-// Vault Component
+// vault
 function Vault({ token }) {
   const [site, setSite] = useState('');
   const [login, setLogin] = useState('');
@@ -169,7 +169,7 @@ function Vault({ token }) {
   );
 }
 
-// Main App Component
+// main 
 function App() {
   const [user, setUser] = useState(null);
   const token = localStorage.getItem('token');
