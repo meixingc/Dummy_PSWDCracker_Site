@@ -20,27 +20,27 @@ const db = new Pool({
 app.use(cors());
 app.use(express.json());
 
-// Derive encryption key from master password and salt (hex string)
-function deriveKey(password, saltHex) {
+// get encryption key from master password and salt
+function getKey(password, saltHex) {
   const salt = Buffer.from(saltHex, 'hex');
   return crypto.pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_LENGTH, 'sha256');
 }
 
-// Encrypt using AES-256-CBC with a random salt per entry
+// encrypt using AES-256 with a random salt per entry
 function encrypt(text, masterPassword) {
-  const salt = crypto.randomBytes(16); // 16 bytes random salt for PBKDF2
+  const salt = crypto.randomBytes(16); 
   const saltHex = salt.toString('hex');
   const iv = crypto.randomBytes(IV_LENGTH);
-  const key = deriveKey(masterPassword, saltHex);
+  const key = getKey(masterPassword, saltHex);
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(text, 'utf8', 'hex') + cipher.final('hex');
   return { encrypted, iv: iv.toString('hex'), salt: saltHex };
 }
 
-// Decrypt using AES-256-CBC and salt
+// decrypt using AES-256 and salt
 function decrypt(encrypted, ivHex, masterPassword, saltHex) {
   const iv = Buffer.from(ivHex, 'hex');
-  const key = deriveKey(masterPassword, saltHex);
+  const key = getKey(masterPassword, saltHex);
   const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
   return decipher.update(encrypted, 'hex', 'utf8') + decipher.final('utf8');
 }
@@ -84,7 +84,7 @@ app.post('/signup', async (req, res) => {
   }
 });
 
-// Login route — bcrypt compare, no salt column needed here
+// login - bcrypt compare, no salt!!!
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password)
@@ -108,7 +108,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Save vault entry — must store salt, iv, encrypted_password
+// save vault entry — storing salt, iv, encrypted_password
 app.post('/vault/add', authenticate, async (req, res) => {
   const { site, login, password, masterPassword } = req.body;
   if (!site || !login || !password || !masterPassword)
@@ -130,7 +130,7 @@ app.post('/vault/add', authenticate, async (req, res) => {
   }
 });
 
-// List vault entries — decrypt with provided masterPassword and stored salt
+// list vault entries — decrypt with masterPassword and salt
 app.post('/vault/list', authenticate, async (req, res) => {
   const { masterPassword } = req.body;
   if (!masterPassword)
@@ -170,5 +170,5 @@ app.post('/vault/list', authenticate, async (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(`✅ Server running on port ${port}`);
+  console.log(`Server running on port ${port}! :3`);
 });

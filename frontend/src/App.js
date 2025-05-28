@@ -88,7 +88,7 @@ function Welcome({ user, setUser }) {
   );
 }
 
-// Vault Component (Secure Password Manager)
+// Vault Component
 function Vault({ token }) {
   const [site, setSite] = useState('');
   const [login, setLogin] = useState('');
